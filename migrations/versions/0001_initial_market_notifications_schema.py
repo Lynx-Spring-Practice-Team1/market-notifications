@@ -1,6 +1,6 @@
 """initial market notifications schema
 
-Revision ID: 0001_initial_market_notifications_schema
+Revision ID: 0001_market_notifications
 Revises:
 Create Date: 2026-05-10
 """
@@ -10,7 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0001_initial_market_notifications_schema"
+revision: str = "0001_market_notifications"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
