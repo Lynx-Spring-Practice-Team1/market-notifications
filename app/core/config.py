@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     exchange_ws_api_secret: str | None = Field(default="test-api-secret")
     exchange_ws_reconnect_seconds: int = 5
 
+    jwt_secret: str = Field(default="change-me-in-production", validation_alias=AliasChoices("JWT_SECRET", "jwt_secret"))
+    tickers: list[str] = ["AAPL", "ARKA", "JPM", "MNVS"]
+
 
 @lru_cache
 def get_settings() -> Settings:

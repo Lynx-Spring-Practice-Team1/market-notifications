@@ -20,10 +20,12 @@ class MarketEventWebsocketWorker:
         session_factory: async_sessionmaker[AsyncSession],
         settings: Settings | None = None,
         publisher: KafkaNotificationPublisher | None = None,
+        relay=None,  # RelayManager | None — imported at runtime to avoid circular deps
     ) -> None:
         self.session_factory = session_factory
         self.settings = settings or get_settings()
         self.publisher = publisher
+        self.relay = relay
         self._stop = asyncio.Event()
 
     async def stop(self) -> None:
@@ -41,7 +43,16 @@ class MarketEventWebsocketWorker:
             try:
                 async with websockets.connect(url) as websocket:
                     await websocket.send(json.dumps(market_events_subscription_payload()))
-                    logger.info("Subscribed to exchange MARKET_EVENTS")
+                    if self.relay is not None:
+                        await websocket.send(json.dumps({
+                            "type": "SUBSCRIBE",
+                            "payload": {"channel": "PRICE_FEED", "tickers": self.settings.tickers},
+                        }))
+                        await websocket.send(json.dumps({
+                            "type": "SUBSCRIBE",
+                            "payload": {"channel": "ORDER_UPDATES"},
+                        }))
+                    logger.info("Subscribed to exchange channels")
 
                     while not self._stop.is_set():
                         message = await websocket.recv()
@@ -58,7 +69,30 @@ class MarketEventWebsocketWorker:
                     await asyncio.sleep(self._reconnect_seconds())
 
     async def handle_message(self, message: str | bytes) -> bool:
-        envelope = parse_market_event_message(message)
+        raw = message if isinstance(message, str) else message.decode()
+
+        try:
+            msg = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return False
+
+        msg_type = msg.get("type")
+
+        if self.relay is not None:
+            if msg_type == "PRICE_UPDATE":
+                await self.relay.broadcast(raw)
+                return True
+
+            if msg_type == "ORDER_UPDATE":
+                payload = msg.get("payload", {})
+                user_id = str(payload.get("platform_user_id", ""))
+                if user_id:
+                    await self.relay.send_to_user(user_id, raw)
+                else:
+                    await self.relay.broadcast(raw)
+                return True
+
+        envelope = parse_market_event_message(raw)
         if envelope is None:
             return False
 

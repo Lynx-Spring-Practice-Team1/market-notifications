@@ -1,18 +1,69 @@
+import base64
+import hashlib
+import hmac
+import json
+import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.db.session import get_session
 from app.schemas.events import MarketEventResponse
 from app.services.market_events import MarketEventService
+from app.services.relay import relay_manager
 
 router = APIRouter()
+
+
+def _b64decode(s: str) -> bytes:
+    s += "=" * (4 - len(s) % 4)
+    return base64.urlsafe_b64decode(s)
+
+
+def _verify_jwt(token: str, secret: str) -> dict:
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise ValueError("malformed token")
+    header_b64, payload_b64, sig_b64 = parts
+    signing_input = f"{header_b64}.{payload_b64}".encode()
+    expected = hmac.new(secret.encode(), signing_input, hashlib.sha256).digest()
+    if not hmac.compare_digest(expected, _b64decode(sig_b64)):
+        raise ValueError("invalid signature")
+    payload = json.loads(_b64decode(payload_b64))
+    exp = payload.get("exp")
+    if exp and time.time() > exp:
+        raise ValueError("token expired")
+    return payload
 
 
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "service": "market-notifications"}
+
+
+@router.websocket("/api/ws")
+async def ws_relay(websocket: WebSocket, token: str = Query(...)):
+    settings = get_settings()
+    try:
+        payload = _verify_jwt(token, settings.jwt_secret)
+        user_id = str(payload.get("sub", ""))
+        if not user_id:
+            raise ValueError("missing sub claim")
+    except Exception:
+        await websocket.close(code=4001)
+        return
+
+    await websocket.accept()
+    await relay_manager.connect(user_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await relay_manager.disconnect(user_id, websocket)
 
 
 @router.get("/api/market/events", response_model=list[MarketEventResponse])

@@ -8,6 +8,7 @@ from app.api.routes import router
 from app.core.config import get_settings
 from app.db.session import async_session_factory
 from app.kafka.producer import KafkaNotificationPublisher
+from app.services.relay import relay_manager
 from app.services.websocket import MarketEventWebsocketWorker
 
 
@@ -27,6 +28,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             async_session_factory,
             settings,
             publisher,
+            relay_manager,
         )
         worker_task = asyncio.create_task(worker.run_forever())
 
