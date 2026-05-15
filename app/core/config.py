@@ -37,7 +37,12 @@ class Settings(BaseSettings):
     exchange_ws_reconnect_seconds: int = 5
 
     jwt_secret: str = Field(default="change-me-in-production", validation_alias=AliasChoices("JWT_SECRET", "jwt_secret"))
-    tickers: list[str] = ["AAPL", "ARKA", "JPM", "MNVS"]
+    tickers: list[str] = [
+  "ARKA", "PHNX", "MNVS", "STRM", "NOVA", "BYTE", "QNTM", "CRUX", "ORBT", "VRTX",
+  "AURA", "CRVS", "IRON", "MRCR", "APEX", "GILT", "VALE", "VLCN", "SOLX", "CLDN",
+  "PRMA", "HDRG", "WNDX", "ATLS", "HLIX", "MEDX", "GNTC", "CRYO", "PLSM", "NXGN",
+  "DRAX", "LUMX", "CRST", "VOYA", "AXEL", "MRKT"
+]
 
 
 @lru_cache
