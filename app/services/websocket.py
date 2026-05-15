@@ -104,6 +104,9 @@ class MarketEventWebsocketWorker:
             if not result.created:
                 return False
 
+            if self.relay is not None:
+                await self.relay.broadcast(envelope.model_dump_json())
+
             if self.publisher is None:
                 return True
 
