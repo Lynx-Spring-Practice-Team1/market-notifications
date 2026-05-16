@@ -43,5 +43,13 @@ class RelayManager:
         for ws in dead:
             await self.disconnect(user_id, ws)
 
+    async def metrics(self) -> dict[str, int | list[str]]:
+        async with self._lock:
+            return {
+                "connected_users": len(self._connections),
+                "total_connections": sum(len(conns) for conns in self._connections.values()),
+                "connected_user_ids": list(self._connections.keys()),
+            }
+
 
 relay_manager = RelayManager()

@@ -5,7 +5,8 @@ import json
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -15,6 +16,12 @@ from app.services.market_events import MarketEventService
 from app.services.relay import relay_manager
 
 router = APIRouter()
+
+
+class AdminConnectionMetrics(BaseModel):
+    connected_users: int
+    total_connections: int
+    connected_user_ids: list[str] = Field(default_factory=list)
 
 
 def _b64decode(s: str) -> bytes:
@@ -36,6 +43,13 @@ def _verify_jwt(token: str, secret: str) -> dict:
     if exp and time.time() > exp:
         raise ValueError("token expired")
     return payload
+
+
+def require_internal_token(
+    x_internal_token: Annotated[str | None, Header(alias="X-Internal-Token")] = None,
+) -> None:
+    if x_internal_token != get_settings().internal_service_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid internal token")
 
 
 @router.get("/health")
@@ -98,3 +112,10 @@ async def get_market_event(
             detail="Market event not found",
         )
     return event
+
+
+@router.get("/internal/admin/metrics", response_model=AdminConnectionMetrics)
+async def get_admin_metrics(
+    _: Annotated[None, Depends(require_internal_token)],
+) -> dict[str, int | list[str]]:
+    return await relay_manager.metrics()

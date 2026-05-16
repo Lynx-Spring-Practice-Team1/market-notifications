@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     exchange_ws_reconnect_seconds: int = 5
 
     jwt_secret: str = Field(default="change-me-in-production", validation_alias=AliasChoices("JWT_SECRET", "jwt_secret"))
+    internal_service_token: str = Field(
+        default="change-me-in-production",
+        validation_alias=AliasChoices("INTERNAL_SERVICE_TOKEN", "internal_service_token"),
+    )
     tickers: list[str] = [
   "ARKA", "PHNX", "MNVS", "STRM", "NOVA", "BYTE", "QNTM", "CRUX", "ORBT", "VRTX",
   "AURA", "CRVS", "IRON", "MRCR", "APEX", "GILT", "VALE", "VLCN", "SOLX", "CLDN",
