@@ -18,7 +18,7 @@ class MarketEvent(Base):
     event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     headline: Mapped[str] = mapped_column(Text, nullable=False)
     scope: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
-    target: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    target: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
     magnitude: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     duration_ticks: Mapped[int] = mapped_column(Integer, nullable=False)
     market_time: Mapped[datetime] = mapped_column(

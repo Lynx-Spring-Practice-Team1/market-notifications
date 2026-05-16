@@ -10,7 +10,7 @@ class MarketEventPayload(BaseModel):
     event_type: str = Field(min_length=1, max_length=64)
     headline: str = Field(min_length=1)
     scope: str = Field(min_length=1, max_length=32)
-    target: str = Field(min_length=1, max_length=128)
+    target: str | None = Field(default=None, max_length=128)
     magnitude: float
     duration_ticks: int = Field(ge=0)
     market_time: datetime
@@ -47,7 +47,7 @@ class MarketEventResponse(BaseModel):
     event_type: str
     headline: str
     scope: str
-    target: str
+    target: str | None = None
     magnitude: float
     duration_ticks: int
     market_time: datetime
