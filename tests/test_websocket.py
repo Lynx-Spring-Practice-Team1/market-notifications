@@ -6,6 +6,7 @@ from app.services.websocket import (
     build_exchange_ws_url,
     market_events_subscription_payload,
     parse_market_event_message,
+    price_feed_subscription_payload,
 )
 
 
@@ -28,6 +29,24 @@ def test_market_events_subscription_payload_matches_exchange_contract() -> None:
     assert market_events_subscription_payload() == {
         "type": "SUBSCRIBE",
         "payload": {"channel": "MARKET_EVENTS"},
+    }
+
+
+def test_price_feed_subscription_payload_uses_configured_tickers() -> None:
+    settings = Settings(tickers=["ARKA", "PHNX"])
+
+    assert price_feed_subscription_payload(settings) == {
+        "type": "SUBSCRIBE",
+        "payload": {"channel": "PRICE_FEED", "tickers": ["ARKA", "PHNX"]},
+    }
+
+
+def test_price_feed_subscription_payload_can_request_all_tickers() -> None:
+    settings = Settings(price_feed_all_tickers=True, tickers=["ARKA", "PHNX"])
+
+    assert price_feed_subscription_payload(settings) == {
+        "type": "SUBSCRIBE",
+        "payload": {"channel": "PRICE_FEED"},
     }
 
 

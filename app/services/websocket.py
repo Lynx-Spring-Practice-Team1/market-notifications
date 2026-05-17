@@ -44,10 +44,7 @@ class MarketEventWebsocketWorker:
                 async with websockets.connect(url) as websocket:
                     await websocket.send(json.dumps(market_events_subscription_payload()))
                     if self.relay is not None:
-                        await websocket.send(json.dumps({
-                            "type": "SUBSCRIBE",
-                            "payload": {"channel": "PRICE_FEED", "tickers": self.settings.tickers},
-                        }))
+                        await websocket.send(json.dumps(price_feed_subscription_payload(self.settings)))
                         await websocket.send(json.dumps({
                             "type": "SUBSCRIBE",
                             "payload": {"channel": "ORDER_UPDATES"},
@@ -143,6 +140,16 @@ def market_events_subscription_payload() -> dict[str, object]:
         "payload": {
             "channel": "MARKET_EVENTS",
         },
+    }
+
+
+def price_feed_subscription_payload(settings: Settings) -> dict[str, object]:
+    payload: dict[str, object] = {"channel": "PRICE_FEED"}
+    if not settings.price_feed_all_tickers:
+        payload["tickers"] = settings.tickers
+    return {
+        "type": "SUBSCRIBE",
+        "payload": payload,
     }
 
 

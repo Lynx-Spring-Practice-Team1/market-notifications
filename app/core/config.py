@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     exchange_ws_api_key: str | None = Field(default="test-api-key")
     exchange_ws_api_secret: str | None = Field(default="test-api-secret")
     exchange_ws_reconnect_seconds: int = 5
+    price_feed_all_tickers: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("PRICE_FEED_ALL_TICKERS", "MARKET_WS_ALL_TICKERS"),
+    )
 
     jwt_secret: str = Field(default="change-me-in-production", validation_alias=AliasChoices("JWT_SECRET", "jwt_secret"))
     internal_service_token: str = Field(
