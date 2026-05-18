@@ -86,7 +86,7 @@ class MarketEventWebsocketWorker:
                 if user_id:
                     await self.relay.send_to_user(user_id, raw)
                 else:
-                    await self.relay.broadcast(raw)
+                    logger.warning("ORDER_UPDATE missing platform_user_id — dropped")
                 return True
 
         envelope = parse_market_event_message(raw)
