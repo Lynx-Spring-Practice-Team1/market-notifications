@@ -32,8 +32,8 @@ class Settings(BaseSettings):
 
     market_ws_enabled: bool = False
     exchange_ws_url: str | None = Field(default="ws://localhost:8080/ws")
-    exchange_ws_api_key: str | None = Field(default="test-api-key")
-    exchange_ws_api_secret: str | None = Field(default="test-api-secret")
+    exchange_ws_api_key: str | None = Field(default=None)
+    exchange_ws_api_secret: str | None = Field(default=None)
     exchange_ws_reconnect_seconds: int = 5
     price_feed_all_tickers: bool = Field(
         default=False,

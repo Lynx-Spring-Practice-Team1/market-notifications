@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -42,6 +41,14 @@ class MarketEventWebsocketWorker:
         while not self._stop.is_set():
             try:
                 async with websockets.connect(url) as websocket:
+                    if self.settings.exchange_ws_api_key and self.settings.exchange_ws_api_secret:
+                        await websocket.send(json.dumps({
+                            "type": "AUTHENTICATE",
+                            "payload": {
+                                "api_key": self.settings.exchange_ws_api_key,
+                                "api_secret": self.settings.exchange_ws_api_secret,
+                            },
+                        }))
                     await websocket.send(json.dumps(market_events_subscription_payload()))
                     if self.relay is not None:
                         await websocket.send(json.dumps(price_feed_subscription_payload(self.settings)))
@@ -122,16 +129,7 @@ class MarketEventWebsocketWorker:
 
 
 def build_exchange_ws_url(settings: Settings) -> str | None:
-    if not settings.exchange_ws_url:
-        return None
-
-    url_parts = urlsplit(settings.exchange_ws_url)
-    query = dict(parse_qsl(url_parts.query, keep_blank_values=True))
-    if settings.exchange_ws_api_key:
-        query["api_key"] = settings.exchange_ws_api_key
-    if settings.exchange_ws_api_secret:
-        query["api_secret"] = settings.exchange_ws_api_secret
-    return urlunsplit(url_parts._replace(query=urlencode(query)))
+    return settings.exchange_ws_url or None
 
 
 def market_events_subscription_payload() -> dict[str, object]:

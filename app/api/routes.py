@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets as _secrets
 import time
 from typing import Annotated
 
@@ -17,11 +18,34 @@ from app.services.relay import relay_manager
 
 router = APIRouter()
 
+_TICKET_TTL = 30  # seconds a ticket remains valid
+_tickets: dict[str, tuple[str, float]] = {}  # ticket -> (user_id, expires_at)
+
+
+def _issue_ticket(user_id: str) -> str:
+    ticket = _secrets.token_urlsafe(16)
+    _tickets[ticket] = (user_id, time.monotonic() + _TICKET_TTL)
+    return ticket
+
+
+def _redeem_ticket(ticket: str) -> str | None:
+    entry = _tickets.pop(ticket, None)
+    if entry is None:
+        return None
+    user_id, expires_at = entry
+    if time.monotonic() > expires_at:
+        return None
+    return user_id
+
 
 class AdminConnectionMetrics(BaseModel):
     connected_users: int
     total_connections: int
     connected_user_ids: list[str] = Field(default_factory=list)
+
+
+class WsTicketResponse(BaseModel):
+    ticket: str
 
 
 def _b64decode(s: str) -> bytes:
@@ -57,15 +81,28 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "service": "market-notifications"}
 
 
-@router.websocket("/api/ws")
-async def ws_relay(websocket: WebSocket, token: str = Query(...)):
+@router.get("/api/ws-ticket", response_model=WsTicketResponse)
+async def issue_ws_ticket(
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+) -> WsTicketResponse:
     settings = get_settings()
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
+    token = authorization[7:]
     try:
         payload = _verify_jwt(token, settings.jwt_secret)
         user_id = str(payload.get("sub", ""))
         if not user_id:
             raise ValueError("missing sub claim")
     except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return WsTicketResponse(ticket=_issue_ticket(user_id))
+
+
+@router.websocket("/api/ws")
+async def ws_relay(websocket: WebSocket, ticket: str = Query(...)):
+    user_id = _redeem_ticket(ticket)
+    if not user_id:
         await websocket.close(code=4001)
         return
 
